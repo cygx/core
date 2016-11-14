@@ -13,55 +13,214 @@ class mockup {
     public static void main(String[] args) {
         World world = new World();
         world.registerSymbol(DoubleValue.type, "double");
+        world.registerSymbol(StringValue.type, "string");
 
         Pkg core = world.createPkg("core");
         core.declare("double", DoubleValue.type);
+        core.declare("string", StringValue.type);
 
         Symbol pi = world.createSymbol("pi");
-        DoubleValue piValue = new DoubleValue(3.14);
-        world.registerConversion(pi, DoubleValue.type, (w, v) -> piValue);
+        DoubleValue piDouble = new DoubleValue(3.14);
+        StringValue piString = new StringValue("pi");
+        world.registerConversion(pi, DoubleValue.type, (w, v) -> piDouble);
+        world.registerConversion(pi, StringValue.type, (w, v) -> piString);
 
         Pkg math = world.createPkg("math");
         math.declare("pi", pi);
 
-        Value value = world.convert(pi, DoubleValue.type);
-        System.out.println(value);
+        System.out.println(world.convert(pi, DoubleValue.type));
+        System.out.println(world.convert(pi, StringValue.type));
+        System.out.println(math.eval("pi"));
+        System.out.println(math.lookup("pi", DoubleValue.type));
+        math.declare("pi", pi, DoubleValue.type, (w, v) -> null);
+        System.out.println(math.lookup("pi", DoubleValue.type));
+    }
+
+    static class TypedCallable implements Callable {
+        private final Symbol type;
+        private final Callable callable;
+
+        public TypedCallable(Symbol type, Callable callable) {
+            this.type = type;
+            this.callable = callable;
+        }
+
+        public Symbol returnType() {
+            return type;
+        }
+
+        public Callable unbox() {
+            return callable;
+        }
+
+        public Value call(World world, Value... args) {
+            return callable.call(world, args);
+        }
     }
 
     static interface LexEnv {
-        void declare(String name, Symbol[] signature, Callable callable);
+        static final Symbol[] NO_PARAMETERS = {};
+
+        TypedCallable lookup(String name, Symbol... argTypes);
+
+        default TypedCallable dispatch(String name, Value... args) {
+            Symbol[] types = new Symbol[args.length];
+            for(int i = 0; i < args.length; ++i)
+                types[i] = args[i].type();
+
+            return lookup(name, types);
+        }
+
+        void declare(String name, Symbol type, Symbol[] parameters,
+                Callable callable);
 
         default void declare(String name, Symbol type) {
-            Symbol[] signature = { type };
-            declare(name, signature, (world, args) -> type);
+            declare(name, type, NO_PARAMETERS, (world, args) -> type);
         }
 
         default void declare(String name, Symbol type, NullaryCallable callable) {
-            Symbol[] signature = { type };
-            declare(name, signature, callable);
+            declare(name, type, NO_PARAMETERS, callable);
         }
 
         default void declare(String name, Symbol type, Symbol parameter,
                 UnaryCallable callable) {
-            Symbol[] signature = { type, parameter };
-            declare(name, signature, callable);
+            declare(name, type, new Symbol[] { parameter }, callable);
         }
 
         default void declare(String name, Symbol type, Symbol a, Symbol b,
                 BinaryCallable callable) {
-            Symbol[] signature = { type, a, b };
-            declare(name, signature, callable);
+            declare(name, type, new Symbol[] { a, b }, callable);
+        }
+    }
+
+    static class CandiTree {
+        private static final Node DUMMY = new Node(null);
+
+        private static final class Node {
+            final Symbol key;
+            TypedCallable value;
+            final List<Node> children = new ArrayList<>(0);
+            Node(Symbol key) { this.key = key; }
+        }
+
+        private Node root = new Node(null);
+
+        public TypedCallable get(Symbol[] parameters) {
+            if(parameters.length == 0)
+                return root.value;
+
+            Node parent = root;
+            LOOP: for(int i = 0;;) {
+                for(Node child : parent.children) {
+                    if(child.key == parameters[i]) {
+                        if(++i == parameters.length)
+                            return child.value;
+
+                        parent = child;
+                        continue LOOP;
+                    }
+                }
+
+                return null;
+            }
+        }
+
+        public TypedCallable lookup(World world, Symbol[] argTypes) {
+            TypedCallable value = get(argTypes);
+            return value == null
+                ? fuzzyLookup(world, root, argTypes, 0)
+                : value;
+        }
+
+        private TypedCallable fuzzyLookup(World world, Node node,
+                Symbol[] argTypes, int pos) {
+            if(pos == argTypes.length)
+                return node.value;
+
+            for(Node child : node.children) {
+                if(world.convertible(argTypes[pos], child.key)) {
+                    TypedCallable found =
+                        fuzzyLookup(world, child, argTypes, pos + 1);
+
+                    if(found != null) return found;
+                }
+            }
+
+            return null;
+        }
+
+        public void put(Symbol type, Symbol[] parameters, Callable callable) {
+            Node node = root;
+            LOOP: for(int i = 0; i < parameters.length; ++i) {
+                for(Node child : node.children) {
+                    if(child.key == parameters[i]) {
+                        node = child;
+                        continue LOOP;
+                    }
+                }
+
+                Node child = new Node(parameters[i]);
+                node.children.add(child);
+                node = child;
+            }
+
+            if(node.value != null)
+                throw new IllegalStateException();
+
+            node.value = new TypedCallable(type, callable);
         }
     }
 
     static class Pkg implements LexEnv {
-        public final String name;
+        private static final class StashKey {
+            public final String name;
+            public final int arity;
+            private final int hashCode;
 
-        public Pkg(String name) {
-            this.name = name;
+            public StashKey(String name, int arity) {
+                this.name = name;
+                this.arity = arity;
+                this.hashCode = 31 * arity + name.hashCode();
+            }
+
+            @Override
+            public int hashCode() {
+                return hashCode;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if(this == obj) return true;
+                if(!(obj instanceof StashKey)) return false;
+                StashKey key = (StashKey)obj;
+                return key.name.equals(name) && key.arity == arity;
+            }
         }
 
-        public void declare(String name, Symbol[] signature, Callable callable) {
+        public final String name;
+        private final World world;
+        private final Map<StashKey, CandiTree> stash = new HashMap<>();
+
+        public Pkg(String name, World world) {
+            this.name = name;
+            this.world = world;
+        }
+
+        public void declare(String name, Symbol type, Symbol[] parameters, 
+                Callable callable) {
+            StashKey key = new StashKey(name, parameters.length);
+            CandiTree tree = stash.get(key);
+            if(tree == null) stash.put(key, tree = new CandiTree());
+            tree.put(type, parameters, callable);
+        }
+
+        public TypedCallable lookup(String name, Symbol... argTypes) {
+            CandiTree tree = stash.get(new StashKey(name, argTypes.length));
+            return tree == null ? null : tree.lookup(world, argTypes);
+        }
+
+        public Value eval(String name, Value... args) {
+            return dispatch(name, args).call(world, args);
         }
     }
 
@@ -77,7 +236,7 @@ class mockup {
         }
 
         public Pkg createPkg(String name) {
-            Pkg pkg = new Pkg(name);
+            Pkg pkg = new Pkg(name, this);
             if(packages.put(name, pkg) != null)
                 throw new IllegalStateException();
 
@@ -100,6 +259,10 @@ class mockup {
                 new SymPair(src.type(), destType));
 
             return converter == null ? null : converter.call(this, src);
+        }
+
+        public boolean convertible(Symbol srcType, Symbol destType) {
+            return conversions.get(new SymPair(srcType, destType)) != null;
         }
     }
 
@@ -130,17 +293,33 @@ class mockup {
 
     static interface Value {
         Symbol type();
-        /*
-        default Symbol asSymbol() { throw new ... }
-        default IntValue asInt() { throw new ... }
-        default BoolArray asBoolArray() { throw new ... }
-        ...
-        */
+
+        default boolean is(Symbol type) {
+            return type() == type;
+        }
     }
 
     static class Symbol implements Value {
         public Symbol type() {
             return this;
+        }
+    }
+
+    static class StringValue implements Value {
+        public static final Symbol type = new Symbol();
+
+        public final String value;
+
+        public StringValue(String value) {
+            this.value = value;
+        }
+
+        public Symbol type() {
+            return type;
+        }
+
+        public String toString() {
+            return "string(" + value + ")";
         }
     }
 
@@ -165,9 +344,13 @@ class mockup {
     static class BoolArray implements Value {
         public static final Symbol type = new Symbol();
 
+        public static BoolArray alloc(int size) {
+            return new BoolArray(new boolean[size]);
+        }
+
         public final boolean[] values;
 
-        public BoolArray(boolean[] values) {
+        public BoolArray(boolean... values) {
             this.values = values;
         }
 
@@ -217,11 +400,11 @@ class mockup {
         }
     }
 
-    static class Reference implements Value {
+    static class Polymorph implements Value {
         public final Role role;
         public final Value target;
 
-        public Reference(Role role, Value target) {
+        public Polymorph(Value target, Role role) {
             this.role = role;
             this.target = target;
         }
