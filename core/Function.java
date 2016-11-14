@@ -8,8 +8,11 @@ public interface Function extends Callable, Comparable<Function> {
     Function withoutArgumentConversions();
 
     default int compareTo(Function fn) {
+        return compareTo(fn.parameters());
+    }
+
+    default int compareTo(Symbol[] b) {
         Symbol[] a = parameters();
-        Symbol[] b = fn.parameters();
         if(a.length != b.length)
             return a.length - b.length;
 

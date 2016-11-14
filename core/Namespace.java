@@ -13,7 +13,7 @@ public class Namespace implements LexicalEnvironment {
     }
 
     public Namespace(String name, World world) {
-        this(name, world, CandiTree.class);
+        this(name, world, CandiTable.class);
     }
 
     public void declare(String name, Symbol type, Symbol[] parameters,
