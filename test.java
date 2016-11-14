@@ -44,5 +44,18 @@ class test {
         });
 
         main.eval("bark", pi);
+
+        main.declare("say", void_, DoubleValue.type, (w, v) -> {
+            System.out.println("a double: " + v.gist());
+            return void_;
+        });
+
+        main.declare("say", void_, StringValue.type, (w, v) -> {
+            System.out.println("a string: " + v.gist());
+            return void_;
+        });
+
+        main.eval("say", new DoubleValue(0.5));
+        main.eval("say", new StringValue("0.5"));
     }
 }
