@@ -16,11 +16,11 @@ public class Namespace implements LexicalEnvironment {
     }
 
     public Function lookup(String name, Symbol... argTypes) {
-        Function callable = stash.get(name, argTypes);
-        if(callable != null) return callable;
+        Function fn = stash.get(name, argTypes);
+        if(fn != null) return fn;
 
-        callable = stash.fuzzyGet(name, argTypes, world);
-        return callable == null ? null : callable.converting();
+        fn = stash.fuzzyGet(name, argTypes, world);
+        return fn == null ? null : fn.withArgumentConversions();
     }
 
     public Value eval(String name, Value... args) {
