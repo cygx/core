@@ -3,11 +3,17 @@ package core;
 public class Namespace implements LexicalEnvironment {
     public final String name;
     private final World world;
-    private final Stash stash = new Stash();
+    private final Stash stash;
 
-    public Namespace(String name, World world) {
+    public Namespace(String name, World world,
+            Class<? extends CandiStore> storeClass) {
         this.name = name;
         this.world = world;
+        this.stash = new Stash(storeClass);
+    }
+
+    public Namespace(String name, World world) {
+        this(name, world, CandiTree.class);
     }
 
     public void declare(String name, Symbol type, Symbol[] parameters,

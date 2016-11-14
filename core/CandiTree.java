@@ -1,7 +1,7 @@
 package core;
 import java.util.*;
 
-class CandiTree {
+final class CandiTree implements CandiStore {
     private static final class Node {
         final Symbol key;
         Function value;
@@ -13,6 +13,8 @@ class CandiTree {
     }
 
     private Node root = new Node(null);
+
+    public CandiTree() {}
 
     private Node makeNode(Symbol[] types) {
         Node node = root;
