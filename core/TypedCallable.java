@@ -1,6 +1,6 @@
 package core;
 
-public interface TypedCallable extends Callable {
+public interface TypedCallable extends Callable, Comparable<TypedCallable> {
     Symbol returnType();
     Symbol[] parameters();
 
@@ -8,6 +8,20 @@ public interface TypedCallable extends Callable {
 
     default Callable unbox() {
         return this;
+    }
+
+    default int compareTo(TypedCallable fn) {
+        Symbol[] a = parameters();
+        Symbol[] b = fn.parameters();
+        if(a.length != b.length)
+            return a.length - b.length;
+
+        for(int i = 0; i < a.length; ++i) {
+            if(a[i] != b[i])
+                return a[i].id - b[i].id;
+        }
+
+        return 0;
     }
 
     static TypedCallable box(Callable callable, Symbol type,
