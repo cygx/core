@@ -2,12 +2,12 @@ package core;
 import java.util.*;
 
 final class Stash extends HashMap<StashKey, CandiTree> {
-    public TypedCallable get(String name, Symbol[] types) {
+    public Function get(String name, Symbol[] types) {
         CandiTree tree = get(new StashKey(name, types.length));
         return tree == null ? null : tree.get(types);
     }
 
-    public TypedCallable fuzzyGet(String name, Symbol[] types, World world) {
+    public Function fuzzyGet(String name, Symbol[] types, World world) {
         CandiTree tree = get(new StashKey(name, types.length));
         return tree == null ? null : tree.fuzzyGet(types, world);
     }
@@ -19,11 +19,11 @@ final class Stash extends HashMap<StashKey, CandiTree> {
         return tree;
     }
 
-    public void put(String name, Symbol[] types, TypedCallable value) {
+    public void put(String name, Symbol[] types, Function value) {
         makeTree(name, types.length).put(types, value);
     }
 
-    public void forcePut(String name, Symbol[] types, TypedCallable value) {
+    public void forcePut(String name, Symbol[] types, Function value) {
         makeTree(name, types.length).forcePut(types, value);
     }
 }

@@ -1,16 +1,16 @@
 package core;
 
-public interface TypedCallable extends Callable, Comparable<TypedCallable> {
+public interface Function extends Callable, Comparable<Function> {
     Symbol returnType();
     Symbol[] parameters();
 
-    TypedCallable converting();
+    Function converting();
 
     default Callable unbox() {
         return this;
     }
 
-    default int compareTo(TypedCallable fn) {
+    default int compareTo(Function fn) {
         Symbol[] a = parameters();
         Symbol[] b = fn.parameters();
         if(a.length != b.length)
@@ -24,9 +24,9 @@ public interface TypedCallable extends Callable, Comparable<TypedCallable> {
         return 0;
     }
 
-    static TypedCallable box(Callable callable, Symbol type,
+    static Function box(Callable callable, Symbol type,
             Symbol... parameters) {
-        TypedCallable converting = new TypedCallable() {
+        Function converting = new Function() {
             public Symbol returnType() {
                 return type;
             }
@@ -43,7 +43,7 @@ public interface TypedCallable extends Callable, Comparable<TypedCallable> {
                 return callable.call(world, convertedArgs);
             }
 
-            public TypedCallable converting() {
+            public Function converting() {
                 return this;
             }
 
@@ -53,7 +53,7 @@ public interface TypedCallable extends Callable, Comparable<TypedCallable> {
             }
         };
 
-        return new TypedCallable() {
+        return new Function() {
             public Symbol returnType() {
                 return type;
             }
@@ -66,7 +66,7 @@ public interface TypedCallable extends Callable, Comparable<TypedCallable> {
                 return callable.call(world, args);
             }
 
-            public TypedCallable converting() {
+            public Function converting() {
                 return converting;
             }
 

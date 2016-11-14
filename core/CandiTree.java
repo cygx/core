@@ -4,7 +4,7 @@ import java.util.*;
 class CandiTree {
     private static final class Node {
         final Symbol key;
-        TypedCallable value;
+        Function value;
         final List<Node> children = new ArrayList<>(0);
 
         Node(Symbol key) {
@@ -32,7 +32,7 @@ class CandiTree {
         return node;
     }
 
-    public void put(Symbol[] types, TypedCallable value) {
+    public void put(Symbol[] types, Function value) {
         Node node = makeNode(types);
         if(node.value != null)
             throw new IllegalStateException();
@@ -40,11 +40,11 @@ class CandiTree {
         node.value = value;
     }
 
-    public void forcePut(Symbol[] types, TypedCallable value) {
+    public void forcePut(Symbol[] types, Function value) {
         makeNode(types).value = value;
     }
 
-    public TypedCallable get(Symbol[] types) {
+    public Function get(Symbol[] types) {
         Node node = root;
         LOOP: for(Symbol key : types) {
             for(Node child : node.children) {
@@ -60,18 +60,18 @@ class CandiTree {
         return node.value;
     }
 
-    public TypedCallable fuzzyGet(Symbol[] types, World world) {
+    public Function fuzzyGet(Symbol[] types, World world) {
         return fuzzyGet(root, types, 0, world);
     }
 
-    private TypedCallable fuzzyGet(Node node, Symbol[] types, int pos,
+    private Function fuzzyGet(Node node, Symbol[] types, int pos,
             World world) {
         if(pos == types.length)
             return node.value;
 
         for(Node child : node.children) {
             if(world.canConvert(types[pos], child.key)) {
-                TypedCallable found = fuzzyGet(child, types, pos + 1, world);
+                Function found = fuzzyGet(child, types, pos + 1, world);
                 if(found != null) return found;
             }
         }

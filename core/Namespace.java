@@ -12,11 +12,11 @@ public class Namespace implements LexicalEnvironment {
 
     public void declare(String name, Symbol type, Symbol[] parameters,
             Callable callable) {
-        stash.put(name, parameters, TypedCallable.box(callable, type, parameters));
+        stash.put(name, parameters, Function.box(callable, type, parameters));
     }
 
-    public TypedCallable lookup(String name, Symbol... argTypes) {
-        TypedCallable callable = stash.get(name, argTypes);
+    public Function lookup(String name, Symbol... argTypes) {
+        Function callable = stash.get(name, argTypes);
         if(callable != null) return callable;
 
         callable = stash.fuzzyGet(name, argTypes, world);

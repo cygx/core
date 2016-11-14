@@ -3,10 +3,10 @@ package core;
 public interface LexicalEnvironment {
     static final Symbol[] NO_PARAMETERS = {};
 
-    TypedCallable lookup(String name, Symbol... argTypes);
+    Function lookup(String name, Symbol... argTypes);
     void declare(String name, Symbol type, Symbol[] parameters, Callable callable);
 
-    default TypedCallable dispatch(String name, Value... args) {
+    default Function dispatch(String name, Value... args) {
         Symbol[] types = new Symbol[args.length];
         for(int i = 0; i < args.length; ++i)
             types[i] = args[i].type();
