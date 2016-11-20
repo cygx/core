@@ -1,4 +1,5 @@
 import core.*;
+import java.util.*;
 
 class test {
     public static void main(String[] args) {
@@ -57,5 +58,29 @@ class test {
 
         main.eval("say", new DoubleValue(0.5));
         main.eval("say", new StringValue("0.5"));
+
+        world.registerSymbol(MutableDoubleValue.type, "@double");
+        world.registerConversion(MutableDoubleValue.type, DoubleValue.type,
+            (w, v) -> new DoubleValue(((MutableDoubleValue)v).value));
+
+        main.eval("say", new MutableDoubleValue(42));
+
+        TupleLayout dblPair = new TupleLayout(
+            DoubleValue.type, DoubleValue.type);
+
+        Symbol[] parameters = {
+            dblPair.tupleType, DoubleValue.type, DoubleValue.type
+        };
+
+        main.declare("create", dblPair.tupleType, parameters, (w, a) -> {
+            Tuple tuple = new Tuple(dblPair);
+            tuple.elements[0] = a[1];
+            tuple.elements[1] = a[2];
+            return tuple;
+        });
+
+        System.out.println(Arrays.toString(
+            ((Tuple)main.eval("create", dblPair.tupleType, new DoubleValue(-1),
+                new DoubleValue(0.5))).elements));
     }
 }
